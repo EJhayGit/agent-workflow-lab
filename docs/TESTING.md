@@ -62,6 +62,11 @@ Each test gets a unique temporary folder, including paths containing spaces,
 and removes it afterward. Failure adapters exist only in tests; the production
 mock always returns simulated success. Never store secrets in fixtures.
 
+Compare subprocess cwd evidence using `realpath` on both paths, preserving exact
+directory identity across aliases such as macOS `/var` and `/private/var`.
+A symlink/junction project-root regression exercises this on every platform;
+links inside managed working-directory paths remain rejected.
+
 M2 local verification is on Windows/Node 24. CI is configured for Windows, Linux
 and macOS; configuration alone is not evidence of passing remote runs. This
 Codex sandbox can deny Vitest temporary-file rename operations; approved
