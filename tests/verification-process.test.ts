@@ -1,4 +1,4 @@
-import { access, mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, mkdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -77,7 +77,20 @@ describe('verification subprocess evidence', () => {
     await writeFile(path.join(dir, 'local check.cjs'), 'console.log(process.cwd())');
     const result = await executeCheck(root, check('', { cwd: 'nested space', args: ['local check.cjs'] }));
     expect(result.status).toBe('PASSED');
-    expect(result.stdout.trim()).toBe(dir);
+    expect(await realpath(result.stdout.trim())).toBe(await realpath(dir));
+  });
+
+  it('resolves the same cwd when the project root has an alias and the child reports a physical path', async () => {
+    const directory = path.join(root, 'physical project', 'nested space');
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, 'local check.cjs'), 'console.log(require("node:fs").realpathSync(process.cwd()))');
+    const alias = path.join(root, 'project alias');
+    await symlink(path.join(root, 'physical project'), alias, process.platform === 'win32' ? 'junction' : 'dir');
+    const logicalDirectory = path.join(alias, 'nested space');
+    const result = await executeCheck(alias, check('', { cwd: 'nested space', args: ['local check.cjs'] }));
+    expect(result.status).toBe('PASSED');
+    expect(result.stdout.trim()).not.toBe(logicalDirectory);
+    expect(await realpath(result.stdout.trim())).toBe(await realpath(logicalDirectory));
   });
 
   it('records missing or linked working directories as execution errors', async () => {
