@@ -4,15 +4,13 @@ import { Command, CommanderError } from 'commander';
 import { MockAgent } from './agents/mock.js';
 import { CONFIG_FILE, initProject, loadConfig } from './config.js';
 import { errorMessage } from './errors.js';
+import { printable } from './output.js';
 import type { RunRecord } from './records.js';
 import { runTask } from './runner.js';
 import { JsonRunStore } from './storage/json.js';
-
-// Treat persisted/user text as data, including terminal control characters.
-function printable(value: string): string {
-  return value.replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/gu,
-    (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
-}
+import { JsonVerificationStore } from './storage/verification.js';
+import { verifyProject } from './verification/engine.js';
+import { formatVerification } from './verification/format.js';
 
 function displayRun(record: RunRecord): void {
   console.log(`Run ${record.id} | ${record.simulated ? 'SIMULATED' : 'REAL'} | ${record.status}`);
@@ -27,7 +25,7 @@ function displayRun(record: RunRecord): void {
 const metadata = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
 const program = new Command()
   .name('agentlab')
-  .description('Agent Workflow Lab — local execution evidence (M1: mock only).')
+  .description('Agent Workflow Lab — local mock execution and deterministic verification evidence.')
   .version(metadata.version)
   .exitOverride()
   .showHelpAfterError();
@@ -51,22 +49,49 @@ program.command('run')
     process.exitCode = result.status === 'succeeded' ? 0 : 1;
   });
 
+program.command('verify')
+  .description('Execute only explicitly configured quality checks and record deterministic evidence.')
+  .action(async () => {
+    const root = process.cwd();
+    const config = await loadConfig(root);
+    const controller = new AbortController();
+    let interrupted: number | undefined;
+    const sigint = () => { interrupted ??= 130; controller.abort(); };
+    const sigterm = () => { interrupted ??= 143; controller.abort(); };
+    process.on('SIGINT', sigint);
+    process.on('SIGTERM', sigterm);
+    try {
+      const record = await verifyProject(root, config, new JsonVerificationStore(root, config.storageDir), controller.signal);
+      console.log(formatVerification(record));
+      process.exitCode = interrupted ?? (record.verdict === 'PASSED' ? 0 : record.verdict === 'FAILED' ? 1 : 2);
+    } finally {
+      process.removeListener('SIGINT', sigint);
+      process.removeListener('SIGTERM', sigterm);
+    }
+  });
+
 program.command('report')
   .description('Display local execution history, newest first; warn about incomplete or corrupt evidence.')
   .action(async () => {
     const config = await loadConfig(process.cwd());
     const history = await new JsonRunStore(process.cwd(), config.storageDir).list();
-    if (history.records.length === 0) {
-      console.log(history.warnings.length ? 'No readable executions. History is damaged; inspect the warnings.' : 'No executions recorded.');
+    const verification = await new JsonVerificationStore(process.cwd(), config.storageDir).list();
+    const warnings = [...history.warnings, ...verification.warnings];
+    if (history.records.length === 0 && verification.records.length === 0) {
+      console.log(warnings.length ? 'No readable executions. History is damaged; inspect the warnings.' : 'No executions recorded.');
     }
     for (const record of history.records) {
       displayRun(record);
       console.log();
     }
-    for (const warning of history.warnings) console.error(`Warning: ${printable(warning)}`);
-    const incomplete = history.records.filter((record) => record.status === 'incomplete').length;
+    for (const record of verification.records) {
+      console.log(formatVerification(record));
+      console.log();
+    }
+    for (const warning of warnings) console.error(`Warning: ${printable(warning)}`);
+    const incomplete = [...history.records, ...verification.records].filter((record) => record.status === 'incomplete').length;
     if (incomplete) console.error(`Warning: ${incomplete} incomplete run(s); no durable terminal outcome was recorded.`);
-    process.exitCode = history.warnings.length || incomplete ? 2 : 0;
+    process.exitCode = warnings.length || incomplete ? 2 : 0;
   });
 
 try {

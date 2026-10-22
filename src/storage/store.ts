@@ -1,11 +1,14 @@
 import type { RunRecord } from '../records.js';
 
-export interface RunHistory {
-  records: RunRecord[];
+export interface RecordHistory<T> {
+  records: T[];
   warnings: string[];
 }
 
-export interface RunStore {
-  save(record: RunRecord): Promise<void>;
-  list(): Promise<RunHistory>;
+export interface RecordStore<T> {
+  save(record: T): Promise<void>;
+  list(): Promise<RecordHistory<T>>;
 }
+
+export type RunHistory = RecordHistory<RunRecord>;
+export type RunStore = RecordStore<RunRecord>;

@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "storageDir": ".agentlab",
+  "verification": {
+    "checks": [
+      {
+        "id": "typecheck",
+        "name": "TypeScript checks",
+        "executable": "npm",
+        "args": ["run", "typecheck"],
+        "required": true,
+        "timeoutMs": 60000,
+        "cwd": "."
+      },
+      {
+        "id": "tests",
+        "name": "Automated tests",
+        "executable": "npm",
+        "args": ["test"],
+        "required": true,
+        "timeoutMs": 120000,
+        "cwd": "."
+      }
+    ]
+  }
+}

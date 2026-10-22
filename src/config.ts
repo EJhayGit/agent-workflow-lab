@@ -4,11 +4,13 @@ import path from 'node:path';
 import { z } from 'zod';
 import { hasCode } from './errors.js';
 import { assertManagedPath, isSafeStorageDir, storagePath, validateProject } from './paths.js';
+import { verificationConfigSchema } from './verification/config.js';
 
 export const CONFIG_FILE = 'agentlab.config.json';
 export const configSchema = z.strictObject({
   version: z.literal(1),
   storageDir: z.string().refine(isSafeStorageDir, 'Use a safe project-relative storage directory without traversal or reserved names.'),
+  verification: verificationConfigSchema.optional(),
 });
 export type ProjectConfig = z.infer<typeof configSchema>;
 

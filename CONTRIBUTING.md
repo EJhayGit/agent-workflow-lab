@@ -17,6 +17,8 @@ run `npm run check` before submitting. Describe the problem, resulting behavior,
 verification and relevant limitations in your contribution. Use the GitHub
 pull-request flow once this project has a hosted repository; no URL is assumed.
 
-M1 is mock-only. Discuss broader milestones before adding real agents, Git
-automation, verification policy, orchestration or hosted services. Failed future
-mandatory checks must remain failures regardless of AI-generated assessments.
+M2 adds explicit subprocess verification while agent execution remains mock-only.
+Discuss broader milestones before adding real agents, Git automation,
+orchestration or hosted services. Required failed checks must remain failures
+regardless of AI-generated assessments. Keep verification independent of agents
+and preserve original evidence and configured policy.

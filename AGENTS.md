@@ -13,13 +13,17 @@ Update these documents as the project evolves. Small changes only require readin
 
 ## AWL conventions
 
-- Current scope is M0 + M1: a mock-only local CLI. Do not automatically start M2.
+- Current scope is through M2: mock agent runs plus explicit deterministic verification. Do not automatically start M3.
 - Use Node 24 LTS, strict TypeScript ESM and `.js` import extensions.
 - Favor one capable agent and deterministic evidence over orchestration.
 - Keep provider behavior behind `AgentAdapter` and persistence behind `RunStore`.
 - Every mock record and presentation must identify simulation; execution success
   never implies verification. M1 always records `verification: not_run`.
 - Never evaluate task text as shell commands or add implicit network/model calls.
+- Only explicit verification configuration may launch checks. Required failures
+  cannot be overridden by agent conclusions; preserve original evidence/policy.
+- Verification is separate from mock runs. Use argument arrays, shell=false,
+  bounded output, timeout/cancellation cleanup, and project-local working directories.
 - Run `npm run check` and review the actual diff before claiming completion.
 - Record significant design choices in `docs/decisions/`; the canonical architecture
   file remains `docs/ARCHITECTURE.md` for Windows filename compatibility.
